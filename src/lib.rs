@@ -1,7 +1,12 @@
 use std::str::FromStr;
 
+/// Represents card unique identifiers (either name or `{series} {rarity} {internal series id}`)
 pub mod ids;
+
+/// Represents a generic card
 pub mod cards;
+
+/// Represents cards collections
 pub mod collections;
 
 /// Represents an MTG Card's rarity (Common / Uncommon / Rare / Mythical)
