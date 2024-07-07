@@ -325,6 +325,9 @@ impl TryFrom<&'_ str> for ManaCost
     }
 }
 
+#[path="../assets/ltr/mod.rs"]
+pub mod ltr ;
+
 #[test]
 fn ltr_collection()
 {
