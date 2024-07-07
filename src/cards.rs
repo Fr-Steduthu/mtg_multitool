@@ -1,6 +1,4 @@
 use crate::{Classification, ManaCost, Rarity};
-use crate::ids::{AsId, Id};
-use crate::ids::Id::{Both, Name};
 
 #[derive(Debug, Clone)]
 pub struct GenericCard<'a>
@@ -17,8 +15,9 @@ pub struct GenericCard<'a>
 
 impl<'s> GenericCard<'s>
 {
-    pub fn id(&self) -> Id
+    pub fn id(&self) -> crate::ids::Id
     {
+        use crate::ids::AsId ;
         self.as_id()
     }
 
@@ -125,9 +124,11 @@ fn genericcard_try_from_str()
     todo!()
 }
 
-impl<'a> From<GenericCard<'a>> for Id<'a>
+impl<'a> From<GenericCard<'a>> for crate::ids::Id<'a>
 {
-    fn from(value: GenericCard<'a>) -> Self {
+    fn from(value: GenericCard<'a>) -> Self
+    {
+        use crate::ids::Id::{Both, Name} ;
         if let Some(id) = value.id
         {
             return Both(value.name, id) ;

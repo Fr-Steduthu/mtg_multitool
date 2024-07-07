@@ -1,4 +1,4 @@
-use std::str::FromStr;
+
 
 /// Represents card unique identifiers (either name or `{series} {rarity} {internal series id}`)
 pub mod ids;
@@ -301,6 +301,8 @@ impl TryFrom<&'_ str> for ManaCost
                 }
             }
         ;
+
+        use std::str::FromStr;
 
         if let Ok(i) = u8::from_str(f.to_ascii_lowercase().as_str())
         {

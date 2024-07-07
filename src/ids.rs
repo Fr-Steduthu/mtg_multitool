@@ -1,4 +1,3 @@
-use crate::Rarity;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Id<'s>
@@ -58,7 +57,7 @@ fn is_serial(s: &str) -> bool
     {
         if let Some(rarity) = ss.next()
         {
-            if let Ok(_) = Rarity::try_from(rarity)
+            if let Ok(_) = crate::Rarity::try_from(rarity)
             {
                 if let Some(id) = ss.next()
                 {
