@@ -44,6 +44,13 @@ impl PartialEq for Id<'_>
     }
 }
 
+#[test]
+fn id_partialeq()
+{
+    todo!()
+}
+
+/// Checks if given `&str` is formatted as a Serial would be
 fn is_serial(s: &str) -> bool
 {
     let mut ss = s.split(" ") ;
@@ -78,4 +85,10 @@ impl<'s> From<&'s str> for Id<'s>
             Id::Name(value)
         }
     }
+}
+
+#[test]
+fn id_from_str()
+{
+    todo!()
 }
