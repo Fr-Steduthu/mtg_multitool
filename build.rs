@@ -12,57 +12,74 @@ fn main()
 fn ltr()
 {
 
-    /*let mut file = std::fs::File::create("assets/ltr/mod.rs").unwrap();
+    let mut file = std::fs::File::create("assets/ltr/mod.rs").unwrap();
 
-    let lines = include_str!("assets/ltr/index.csv").lines();
-    let mut constants = vec![] ;
+    let input_lines = include_str!("assets/ltr/cards_ltr.csv").lines();
 
-    writeln!(file, "mod ltr {}", "{").unwrap();
-    writeln!(file, "\t#![allow(non_snake_case)]").unwrap();
-    writeln!(file, "\tuse crate::CsvConverter ;").unwrap();
-    writeln!(file, "\tinclude!(\"header.rs\") ;").unwrap();
-    for line in lines
+    let mut code_lines = vec![] ;
+    let mut constants_names = vec![] ;
+
+    code_lines.push("mod ltr {".to_string()) ;
+    code_lines.push("\t#![allow(non_snake_case)]".to_string());
+
+    for input_line in input_lines
     {
-        eprintln!("Observing {}", line) ;
-        if line.trim() == "" { continue ; }
-        let var: CsvConverter = line.clone().try_into_csv().unwrap() ;
+        eprintln!("Observing {}", input_line) ;
 
-        let var_name = var
-            .name()
-            .trim()
+        if input_line.trim() == "" { continue ; }
+
+        let var_name =
+            {
+                let mut iter = input_line.splitn(3, ";") ;
+                if iter.next().is_none() // id
+                { panic!("Incorrectly formatted csv line") }
+
+                if let Some(n) = iter.next() // name
+                {
+                    n
+                } else {
+                    panic!("Malformed csv line")
+                }
+
+            }.trim()
             .to_ascii_uppercase()
             .replace(|c| { c == ' ' || c == ',' }, "_")
+            .replace("\"", "")
         ;
 
-        writeln!(
-            file,
-            "\tpub fn {}() -> CsvConverter<'static> {} \"{}\".try_into().unwrap() {}",
-            var_name,
-            "{",
-            line.escape_default(),
-            "}"
-        ).unwrap();
+        code_lines.push(
+            format!(
+                "\tconst {}: &'static str = \"{}\" ;",
+                var_name.as_str(),
+                input_line.escape_default().collect::<String>().as_str(),
+            )
+        ) ;
 
-        constants.push(var_name) ;
+        constants_names.push(var_name) ;
 
     }
 
     // Collection
-    write!(
-        file,
-        "\tconst COLLECTION: crate::Collection =  {}",
-        "crate::Collection(vec!["
-    ).unwrap() ;
-    for c in constants {
-        write!(
-            file,
-            "(&{}(), 0), ", // todo: bring back header with a type that implements GenericCard
-            c
-        ).unwrap() ;
-    }
-    writeln!(file, "{}", "]) }").unwrap();
-    writeln!(file, "{}", "}").unwrap();
+    let mut collection_code = vec!["\tpub fn collection() -> crate::collections::Collection<'static>\n\t{\n\t\tcrate::collections::Collection::make(vec![\n".to_string()] ;
 
-    file.flush().unwrap();*/
+    for constant_name in constants_names {
+        collection_code.push(
+            [
+                "\t\t\t",
+                constant_name.as_str(),
+                ",\n"
+            ].join("")
+        ) ;
+    }
+    collection_code.push("\n\t\t])\n\t}".to_string()) ;
+
+    // Writing out code
+
+    writeln!(file, "{}", code_lines.join("\n")).unwrap() ;
+    writeln!(file, "{}\n{}", collection_code.join(""), "}").unwrap() ;
+
+
+    // Save file
+    file.flush().unwrap();
 
 }
