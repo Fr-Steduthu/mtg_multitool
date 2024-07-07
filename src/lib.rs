@@ -1,5 +1,4 @@
 use std::str::FromStr;
-use crate::Classification::{Artifact, Creature, LegendaryCreature, Sorcery, Token};
 
 pub mod ids;
 pub mod cards;
@@ -52,7 +51,7 @@ fn rarity_try_from_str()
 
 /// Represents a card's kind, such as `"Legendary Land"` or `"Sorcery"`
 #[derive(Debug, Clone)]
-pub enum Classification<'mostly_static>
+pub enum Classification
 {
     /// Sorcery (`"Sorcery"`)
     Sorcery,
@@ -69,12 +68,12 @@ pub enum Classification<'mostly_static>
     //todo,
 
     /// Creatures (`"Creature - [...]"`)
-    Creature(&'mostly_static str),
+    Creature(String),
 
     /// `"Token [...]"`
-    Token(Box<Classification<'mostly_static>>),
+    Token(Box<Classification>),
     /// `"Legendary [...]"`
-    Legendary(Box<Classification<'mostly_static>>),
+    Legendary(Box<Classification>),
 }
 
 /// The recognized str are:
@@ -90,89 +89,90 @@ pub enum Classification<'mostly_static>
 /// <li>`"Token [...]"`</li>
 /// <li>`"Legendary [...]"`</li>
 /// </ul>
-impl<'mostly_static> TryFrom<&'mostly_static str> for Classification<'mostly_static>
+impl<'mostly_static> TryFrom<&'mostly_static str> for Classification
 {
     type Error = &'static str;
 
     fn try_from(s: &'mostly_static str) -> Result<Self, Self::Error>
     {
-        let s = match s.trim().to_ascii_lowercase().as_str()
+        use Classification::{*} ;
+        let s = s.trim().to_ascii_lowercase() ;
+        let s = match s.as_str()
         {
-            "sorcery" => return false,
-            "ritual" => return false,
-            "enchantment" => return false,
-            "land" => return false,
-            "artifact" => return false,
+            "sorcery" => return Ok(Sorcery),
+            "ritual" => return Ok(Ritual),
+            "enchantment" => return Ok(Enchantment),
+            "land" | "terrain" | "basic land" => return Ok(Terrain),
+            "artifact" => return Ok(Artifact),
 
             other => other,
         } ;
 
-        let split = s.split_once(" ") ;
 
+        let split = s.split_once(" ") ;
         if let Some((prefix, suffix)) = split
         {
-            match prefix.trim().to_ascii_lowercase().as_str()
+            return match prefix.trim().to_ascii_lowercase().as_str()
             {
-                "creature" =>
+                "token" => Ok(Token(Box::new(Classification::try_from(suffix)?))),
+                "legendary" => Ok(Legendary(Box::new(Classification::try_from(suffix)?))),
 
+                "creature" => {
+                    let new_split = s.split_once("-");
+                    if let Some((label, class)) = new_split
+                    {
+                        return if label.trim() == "creature"
+                        {
+                            Ok(Creature(class.trim().to_string()))
+                        } else {
+                            Err("Expected a creature")
+                        }
+                    }
+
+                    Err("Could not parse str into card kind")
+                },
+
+                _ => Err("Could not recognize card kind")
             }
         }
 
-
-
-        /*use crate::Classification::{*} ;
-
-        let mut s = s.to_ascii_lowercase().split("-") ;
-
-        if s.count() != 1
-        {
-            if let Some(first_word) = s.next()
-            {
-                match first_word.trim()
-                {
-                    str if &str[0..5] == "token" => return Ok(Token(Box::new(Classification::from_str(s.collect())?))),
-                    "creature" => return
-                        &_ => {}
-                }
-            }
-        }*/
-        // todo
-        Ok(Classification::Enchantment)
+        Err("Could not recognize card kind")
     }
 }
 
 #[test]
-fn classification_try_from_str__base()
+fn classification_try_from_str_base()
 {
     use crate::Classification::{*};
     assert_eq!(Classification::try_from("Sorcery"), Ok(Sorcery)) ;
     assert_eq!(Classification::try_from("Ritual"), Ok(Ritual)) ;
     assert_eq!(Classification::try_from("Enchantment"), Ok(Enchantment)) ;
-    assert_eq!(Classification::try_from("Legendary land"), Ok(LegendaryTerrain)) ;
+    assert_eq!(Classification::try_from("Legendary land"), Ok(Legendary(Box::new(Terrain)))) ;
 
-    assert_eq!(Classification::try_from("Creature - Soldier"), Ok(Creature("Soldier"))) ;
+    assert_eq!(Classification::try_from("Creature - Soldier"), Ok(Creature("Soldier".to_string()))) ;
 
 }
 
 #[test]
-fn classification_try_from_str__case()
+fn classification_try_from_str_case()
 {
     assert_eq!(Classification::try_from("sorCerY"), Classification::try_from("Sorcery")) ;
-    assert_eq!(Classification::try_from("Creature - Soldier"), Ok(Classification::Creature("  soldier "))) ;
+    assert_eq!(Classification::try_from("Creature - Soldier"), Ok(Classification::Creature("  soldier ".to_string()))) ;
 }
 
-/// test hors specification
+/// Test hors specification
 #[test]
-fn classification_try_from_str__whitespaces()
+fn classification_try_from_str_whitespaces()
 {
+    use Classification::{Sorcery, Creature} ;
     assert_eq!(Classification::try_from(" Sorcery  "), Ok(Sorcery)) ;
     assert_eq!(Classification::try_from(" Sorcery  "), Ok(Sorcery)) ;
     assert_eq!(Classification::try_from("Sorcery"), Ok(Sorcery)) ;
     assert_eq!(Classification::try_from(" Sorcery"), Ok(Sorcery)) ;
     assert_eq!(Classification::try_from("Sorcery "), Ok(Sorcery)) ;
 
-    assert_eq!(Classification::try_from("Creature - Soldier"), Ok(Classification::Creature("  soldier "))) ;
-    assert_eq!(Classification::try_from("Creature  -   Soldier"), Ok(Classification::Creature("  soldier "))) ;
+    assert_eq!(Classification::try_from("Creature - Soldier"), Ok(Creature("  soldier ".to_string()))) ;
+    assert_eq!(Classification::try_from("Creature  -   Soldier"), Ok(Creature("  soldier ".to_string()))) ;
 }
 
 /// Ignores trailing whitespaces and case
@@ -182,16 +182,16 @@ fn classification_try_from_str__whitespaces()
 /// assert_eq!(Ritual, Ritual) ;
 /// assert_eq!(Enchantment, Enchantment) ;
 /// assert_eq!(Terrain, Terrain) ;
-/// assert_eq!(LegendaryTerrain, LegendaryTerrain) ;
+/// //assert_eq!(LegendaryTerrain, LegendaryTerrain) ;
 ///
-/// assert_eq!(Creature("Soldier"), Creature("Soldier")) ;
-/// assert_eq!(LegendaryCreature("Sauron"), LegendaryCreature("Sauron")) ;
+/// assert_eq!(Creature("Soldier".to_string()), Creature("Soldier".to_string())) ;
+/// //assert_eq!(LegendaryCreature("Sauron".to_string()), LegendaryCreature("Sauron".to_string())) ;
 ///
-/// assert_eq!(Artifact("???"), Artifact("???")) ;
+/// assert_eq!(Artifact, Artifact) ;
 ///
-/// assert_eq!(Token(Box::new(LegendaryCreature("Soldier"))), Token(Box::new(LegendaryCreature("Soldier")))) ;
+/// //assert_eq!(Token(Box::new(LegendaryCreature("Soldier".to_string()))), Token(Box::new(LegendaryCreature("Soldier".to_string())))) ;
 /// ```
-impl PartialEq for Classification<'_> {
+impl PartialEq for Classification {
     fn eq(&self, other: &Self) -> bool {
         use Classification::* ;
         match (self, other)
@@ -200,12 +200,11 @@ impl PartialEq for Classification<'_> {
             (Ritual, Ritual) |
             (Enchantment, Enchantment) |
             (Terrain, Terrain) |
-            (LegendaryTerrain, LegendaryTerrain) => true,
+            (Artifact, Artifact) => true,
 
-            (Creature(self_str), Creature(other_str)) |
-            (LegendaryCreature(self_str), LegendaryCreature(other_str)) |
-            (Artifact(self_str), Artifact(other_str)) => self_str.trim().to_ascii_uppercase() == other_str.trim().to_ascii_uppercase(),
+            (Creature(self_str), Creature(other_str)) => self_str.trim().to_ascii_uppercase() == other_str.trim().to_ascii_uppercase(),
 
+            (Legendary(self_inner), Legendary(other_inner)) |
             (Token(self_inner), Token(other_inner)) => self_inner == other_inner,
 
             (_, _) => false
@@ -222,17 +221,18 @@ fn classification_partialeq()
     assert_eq!(Ritual, Ritual) ;
     assert_eq!(Enchantment, Enchantment) ;
     assert_eq!(Terrain, Terrain) ;
-    assert_eq!(LegendaryTerrain, LegendaryTerrain) ;
+    assert_eq!(Legendary(Box::new(Terrain)), Legendary(Box::new(Terrain))) ;
+    assert_eq!(Artifact, Artifact) ;
 
-    assert_eq!(Creature("Soldier"), Creature("Soldier")) ;
-    assert_eq!(Creature("  soldieR "), Creature("Soldier")) ;
-    assert_eq!(LegendaryCreature("Sauron"), LegendaryCreature("Sauron")) ;
-    assert_eq!(LegendaryCreature("sAUron "), LegendaryCreature(" SauRON")) ;
-    assert_ne!(LegendaryCreature("Sauron"), LegendaryCreature("Sauron, the necromancer")) ;
-    assert_eq!(Artifact("???"), Artifact("???")) ;
+    assert_eq!(Creature("Soldier".to_string()), Creature("Soldier".to_string())) ;
+    assert_eq!(Creature("  soldieR ".to_string()), Creature("Soldier".to_string())) ;
+    assert_eq!(Legendary(Box::new(Creature("Sauron".to_string()))), Legendary(Box::new(Creature("Sauron".to_string())))) ;
+    assert_eq!(Legendary(Box::new(Creature("SaURon ".to_string()))), Legendary(Box::new(Creature(" SaurON".to_string())))) ;
+    assert_ne!(Legendary(Box::new(Creature("Sauron".to_string()))), Legendary(Box::new(Creature("Sauron, the Necromancer".to_string())))) ;
 
-    assert_eq!(Token(Box::new(LegendaryCreature("Soldier"))), Token(Box::new(LegendaryCreature("Soldier")))) ;
-    assert_ne!(Token(Box::new(LegendaryCreature("Orc"))), Token(Box::new(LegendaryCreature("Soldier")))) ;
+
+    assert_eq!(Token(Box::new(Creature("Soldier".to_string()))), Token(Box::new(Creature("Soldier".to_string())))) ;
+    assert_ne!(Token(Box::new(Creature("Orc".to_string()))), Token(Box::new(Creature("Soldier".to_string())))) ;
 }
 
 /// Represents a card's cost in the game's different manas<br/>

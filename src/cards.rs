@@ -9,7 +9,7 @@ pub struct GenericCard<'a>
     name: &'a str,
 
     cost: ManaCost,
-    kind: Classification<'a>,
+    kind: Classification,
     rarity: Rarity,
 
     effects: &'a str,
