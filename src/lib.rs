@@ -326,7 +326,6 @@ impl TryFrom<&'_ str> for ManaCost
 }
 
 #[test]
-#[cfg(LTR)]
 fn ltr_collection()
 {
     let lua = ltr::collection() ;
