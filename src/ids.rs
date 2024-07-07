@@ -1,17 +1,19 @@
 use crate::Rarity;
 
-/// Examples: <br/>
-/// `Serial("LTR C 0001")`
-/// `Name("Banish from edoras")`
-/// `Both("Banish from Edoras", "LTR C 0001")`
 #[derive(Debug, Clone, Copy)]
 pub enum Id<'s>
 {
+    /// Example: `Name("Banish from Edoras")`
     Name(&'s str),
+
+    /// Example: `Serial("LTR C 0001")`
     Serial(&'s str),
+
+    /// Example: `Both("Banish from Edoras", "LTR C 0001")`
     Both(&'s str, &'s str),
 }
 
+/// Used for the conversion, without moving the original value, of a type into an Id
 pub trait AsId<'a>
 {
     fn as_id(&self) -> Id<'a> ;
