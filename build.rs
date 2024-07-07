@@ -19,8 +19,7 @@ fn ltr()
     let mut code_lines = vec![] ;
     let mut constants_names = vec![] ;
 
-    code_lines.push("mod ltr {".to_string()) ;
-    code_lines.push("\t#![allow(non_snake_case)]".to_string());
+    code_lines.push("#![allow(non_snake_case)]".to_string());
 
     for input_line in input_lines
     {
@@ -49,7 +48,7 @@ fn ltr()
 
         code_lines.push(
             format!(
-                "\tconst {}: &'static str = \"{}\" ;",
+                "pub const {}: &'static str = \"{}\" ;",
                 var_name.as_str(),
                 input_line.escape_default().collect::<String>().as_str(),
             )
@@ -60,23 +59,23 @@ fn ltr()
     }
 
     // Collection
-    let mut collection_code = vec!["\tpub fn collection() -> crate::collections::Collection<'static>\n\t{\n\t\tcrate::collections::Collection::make(vec![\n".to_string()] ;
+    let mut collection_code = vec!["pub fn collection() -> crate::collections::Collection<'static>\n{\n\tcrate::collections::Collection::make(vec![\n".to_string()] ;
 
     for constant_name in constants_names {
         collection_code.push(
             [
-                "\t\t\t",
+                "\t\t",
                 constant_name.as_str(),
                 ",\n"
             ].join("")
         ) ;
     }
-    collection_code.push("\n\t\t])\n\t}".to_string()) ;
+    collection_code.push("\n\t])\n}".to_string()) ;
 
     // Writing out code
 
     writeln!(file, "{}", code_lines.join("\n")).unwrap() ;
-    writeln!(file, "{}\n{}", collection_code.join(""), "}").unwrap() ;
+    writeln!(file, "{}", collection_code.join("")).unwrap() ;
 
 
     // Save file
