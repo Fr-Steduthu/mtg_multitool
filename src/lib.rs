@@ -325,6 +325,14 @@ impl TryFrom<&'_ str> for ManaCost
     }
 }
 
+#[test]
 #[cfg(LTR)]
-include!("../assets/ltr/mod.rs");
+fn ltr_collection()
+{
+    let lua = ltr::collection() ;
+
+    lua.add(&BANISH_FROM_EDORAS) ;
+
+    println!("{:?}", lua)
+}
 
