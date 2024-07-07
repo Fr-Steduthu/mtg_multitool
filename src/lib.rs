@@ -253,6 +253,7 @@ pub struct ManaCost(u8, u8, u8, u8, u8, u8) ;
 
 impl ManaCost
 {
+    /// Creates a ManaCost object with all values set to 0
     pub fn zero() -> ManaCost
     {
         ManaCost(0,0,0,0,0,0)
@@ -272,6 +273,7 @@ impl ManaCost
     { self.5 }
 }
 
+/// Converts str `n {"w" | "blu" | "bla" | "r" | "g"}` with n >= 0 to a ManaCost data struct
 impl TryFrom<&'_ str> for ManaCost
 {
     type Error = &'static str;
@@ -290,7 +292,7 @@ impl TryFrom<&'_ str> for ManaCost
                 {
                     v
                 } else {
-                    return Err("No colorless cost given")
+                    return Err("No colorless cost given, please specify '0' if this is intentional")
                 }
             }
         ;
