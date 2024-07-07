@@ -1,68 +1,11 @@
 use std::str::FromStr;
-use crate::Id::{Both, Name, Serial};
+use crate::Classification::{Artifact, Creature, LegendaryCreature, Sorcery, Token};
 
-/// Examples:
-/// `Serial("LTR C 0001")`
-/// `Name("Banish from edoras")`
-/// `Both("Banish from Edoras", "LTR C 0001")`
-#[derive(Debug)]
-pub enum Id<'s>
-{
-    Name(&'s str),
-    Serial(&'s str),
-    Both(&'s str, &'s str),
-}
+pub mod ids;
+pub mod cards;
+pub mod collections;
 
-impl PartialEq for Id<'_>
-{
-    fn eq(&self, other: &Self) -> bool {
-        match self {
-            Name(n) => if let Name(nn) = other { n == nn } else { false },
-            Serial(s) => if let Serial(ss) = other { s == ss } else { false },
-            Both(n, s) => {
-                match other
-                {
-                    Name(nn) => n == nn,
-                    Serial(ss) => s == ss,
-                    Both(nn, ss) => n == nn || s == ss,
-                }
-            }
-        }
-    }
-}
-
-fn is_serial(s: &str) -> bool
-{
-    let mut ss = s.split(" ") ;
-    if let Some(_) = ss.next()
-    {
-        if let Some(rarity) = ss.next()
-        {
-            if let Ok(_) = Rarity::try_from(rarity)
-            {
-                if let Some(id) = ss.next()
-                {
-                    if let Ok(_) = id.parse::<usize>()
-                    {
-                        return true ;
-                    }
-                }
-            }
-        }
-    }
-
-    false
-}
-impl<'s> From<&'s str> for Id<'s>
-{
-    fn from(value: &'s str) -> Self {
-        if is_serial(value) { return Serial(value); }
-        else { Name(value) }
-    }
-}
-
-
-/// Common / Uncommon / Rare / Mythical
+/// Represents an MTG Card's rarity (Common / Uncommon / Rare / Mythical)
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum Rarity
 {
@@ -71,9 +14,17 @@ pub enum Rarity
     Rare,
     Mythical,
 }
+
+/// ```
+/// use mtg_multitool::Rarity;
+/// assert_eq!(Rarity::try_from("c"), Ok(Rarity::Common)) ;
+/// assert_eq!(Rarity::try_from("u"), Ok(Rarity::Uncommon)) ;
+/// assert_eq!(Rarity::try_from("r"), Ok(Rarity::Rare)) ;
+/// assert_eq!(Rarity::try_from("m"), Ok(Rarity::Mythical)) ;
+/// ```
 impl<'a> TryFrom<&'a str> for Rarity
 {
-    type Error = &'a str;
+    type Error = &'static str;
 
     fn try_from(value: &'a str) -> Result<Self, Self::Error> {
         Ok(match value.trim().to_ascii_uppercase().as_str()
@@ -89,62 +40,86 @@ impl<'a> TryFrom<&'a str> for Rarity
 }
 
 #[test]
-fn rarity_from_str()
+fn rarity_try_from_str()
 {
-    use Rarity::{*} ;
-    assert_eq!(Rarity::try_from(" c ").expect("\" c \" test failed"), Common) ;
-    assert_eq!(Rarity::try_from("U ").expect("\"U \" test failed"), Uncommon) ;
-    assert_eq!(Rarity::try_from("  R").expect("\"  R\" test failed"), Rare) ;
-    assert_eq!(Rarity::try_from("m").expect("\"m\" test failed"), Mythical) ;
-
+    use crate::Rarity;
+    assert_eq!(Rarity::try_from(" c "), Ok(Rarity::Common)) ;
+    assert_eq!(Rarity::try_from("U  "), Ok(Rarity::Uncommon)) ;
+    assert_eq!(Rarity::try_from("  R"), Ok(Rarity::Rare)) ;
+    assert_eq!(Rarity::try_from("m"), Ok(Rarity::Mythical)) ;
 }
 
 
-/// Represents:
-/// `"Token [...]"`
-/// `"Legendary Creature - [...]"`
-/// `"Creature - [...]"`
-///
-/// `"Artifact - [...]"`
-///
-/// `"Sorcery"`
-/// `"Ritual"`
-/// `"Enchantment"`
-///
-/// `"Basic Land - [...]"`
-/// `"Legendary Land"`
-#[derive(Debug, Clone, PartialEq)]
-pub enum Classification
+/// Represents a card's kind, such as `"Legendary Land"` or `"Sorcery"`
+#[derive(Debug, Clone)]
+pub enum Classification<'mostly_static>
 {
-    /// `"Token [...]"`
-    Token(Box<Classification>),
-
-    /// `"Creature - [...]"`
-    Creature(&'static str),
-    /// `"Legendary Creature - [...]"`
-    LegendaryCreature(&'static str),
-
-    /// `"Sorcery"`
+    /// Sorcery (`"Sorcery"`)
     Sorcery,
-    /// `"Ritual"`
+    /// Rituals (`"Ritual"`)
     Ritual,
-    /// `"Enchantment"`
+    /// Enchantments (`"Enchantment"`)
     Enchantment,
-
-    /// `"Artifact - [...]"`
-    Artifact(&'static str),
-
-    /// `"Basic Land - [...]"`
+    /// Lands (`"Land"`)
     Terrain,
-    /// `"Legendary Land"`
-    LegendaryTerrain,
+    /// Regular artifacts (`"Artifact"`)
+    Artifact,
+
+    /// Artifact creatures (`"Artifact creature"`)
+    //todo,
+
+    /// Creatures (`"Creature - [...]"`)
+    Creature(&'mostly_static str),
+
+    /// `"Token [...]"`
+    Token(Box<Classification<'mostly_static>>),
+    /// `"Legendary [...]"`
+    Legendary(Box<Classification<'mostly_static>>),
 }
 
-impl TryFrom<&'static str> for Classification
+/// The recognized str are:
+/// <ul>
+/// <li>`"Sorcery"`</li>
+/// <li>`"Ritual"`</li>
+/// <li>`"Enchantment"`</li>
+/// <li>`"Basic Land"`</li>
+/// <li>`"Artifact"`</li>
+///
+/// <li>`"Creature - [...]"`</li>
+///
+/// <li>`"Token [...]"`</li>
+/// <li>`"Legendary [...]"`</li>
+/// </ul>
+impl<'mostly_static> TryFrom<&'mostly_static str> for Classification<'mostly_static>
 {
     type Error = &'static str;
 
-    fn try_from(s: &'static str) -> Result<Self, Self::Error> {
+    fn try_from(s: &'mostly_static str) -> Result<Self, Self::Error>
+    {
+        let s = match s.trim().to_ascii_lowercase().as_str()
+        {
+            "sorcery" => return false,
+            "ritual" => return false,
+            "enchantment" => return false,
+            "land" => return false,
+            "artifact" => return false,
+
+            other => other,
+        } ;
+
+        let split = s.split_once(" ") ;
+
+        if let Some((prefix, suffix)) = split
+        {
+            match prefix.trim().to_ascii_lowercase().as_str()
+            {
+                "creature" =>
+
+            }
+        }
+
+
+
         /*use crate::Classification::{*} ;
 
         let mut s = s.to_ascii_lowercase().split("-") ;
@@ -161,24 +136,128 @@ impl TryFrom<&'static str> for Classification
                 }
             }
         }*/
-        unimplemented!("TryFrom<&'static str> for Classification") ;
+        // todo
+        Ok(Classification::Enchantment)
     }
 }
 
 #[test]
-fn test_class_from_str()
+fn classification_try_from_str__base()
 {
-    todo!()
+    use crate::Classification::{*};
+    assert_eq!(Classification::try_from("Sorcery"), Ok(Sorcery)) ;
+    assert_eq!(Classification::try_from("Ritual"), Ok(Ritual)) ;
+    assert_eq!(Classification::try_from("Enchantment"), Ok(Enchantment)) ;
+    assert_eq!(Classification::try_from("Legendary land"), Ok(LegendaryTerrain)) ;
+
+    assert_eq!(Classification::try_from("Creature - Soldier"), Ok(Creature("Soldier"))) ;
+
 }
 
+#[test]
+fn classification_try_from_str__case()
+{
+    assert_eq!(Classification::try_from("sorCerY"), Classification::try_from("Sorcery")) ;
+    assert_eq!(Classification::try_from("Creature - Soldier"), Ok(Classification::Creature("  soldier "))) ;
+}
 
+/// test hors specification
+#[test]
+fn classification_try_from_str__whitespaces()
+{
+    assert_eq!(Classification::try_from(" Sorcery  "), Ok(Sorcery)) ;
+    assert_eq!(Classification::try_from(" Sorcery  "), Ok(Sorcery)) ;
+    assert_eq!(Classification::try_from("Sorcery"), Ok(Sorcery)) ;
+    assert_eq!(Classification::try_from(" Sorcery"), Ok(Sorcery)) ;
+    assert_eq!(Classification::try_from("Sorcery "), Ok(Sorcery)) ;
 
-/// ManaCost(colorless, white, blue, black, red, green)
+    assert_eq!(Classification::try_from("Creature - Soldier"), Ok(Classification::Creature("  soldier "))) ;
+    assert_eq!(Classification::try_from("Creature  -   Soldier"), Ok(Classification::Creature("  soldier "))) ;
+}
+
+/// Ignores trailing whitespaces and case
+/// ```
+/// use mtg_multitool::Classification::* ;
+/// assert_eq!(Sorcery, Sorcery) ;
+/// assert_eq!(Ritual, Ritual) ;
+/// assert_eq!(Enchantment, Enchantment) ;
+/// assert_eq!(Terrain, Terrain) ;
+/// assert_eq!(LegendaryTerrain, LegendaryTerrain) ;
+///
+/// assert_eq!(Creature("Soldier"), Creature("Soldier")) ;
+/// assert_eq!(LegendaryCreature("Sauron"), LegendaryCreature("Sauron")) ;
+///
+/// assert_eq!(Artifact("???"), Artifact("???")) ;
+///
+/// assert_eq!(Token(Box::new(LegendaryCreature("Soldier"))), Token(Box::new(LegendaryCreature("Soldier")))) ;
+/// ```
+impl PartialEq for Classification<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        use Classification::* ;
+        match (self, other)
+        {
+            (Sorcery, Sorcery) |
+            (Ritual, Ritual) |
+            (Enchantment, Enchantment) |
+            (Terrain, Terrain) |
+            (LegendaryTerrain, LegendaryTerrain) => true,
+
+            (Creature(self_str), Creature(other_str)) |
+            (LegendaryCreature(self_str), LegendaryCreature(other_str)) |
+            (Artifact(self_str), Artifact(other_str)) => self_str.trim().to_ascii_uppercase() == other_str.trim().to_ascii_uppercase(),
+
+            (Token(self_inner), Token(other_inner)) => self_inner == other_inner,
+
+            (_, _) => false
+        }
+    }
+}
+
+#[test]
+fn classification_partialeq()
+{
+    use Classification::{*} ;
+
+    assert_eq!(Sorcery, Sorcery) ;
+    assert_eq!(Ritual, Ritual) ;
+    assert_eq!(Enchantment, Enchantment) ;
+    assert_eq!(Terrain, Terrain) ;
+    assert_eq!(LegendaryTerrain, LegendaryTerrain) ;
+
+    assert_eq!(Creature("Soldier"), Creature("Soldier")) ;
+    assert_eq!(Creature("  soldieR "), Creature("Soldier")) ;
+    assert_eq!(LegendaryCreature("Sauron"), LegendaryCreature("Sauron")) ;
+    assert_eq!(LegendaryCreature("sAUron "), LegendaryCreature(" SauRON")) ;
+    assert_ne!(LegendaryCreature("Sauron"), LegendaryCreature("Sauron, the necromancer")) ;
+    assert_eq!(Artifact("???"), Artifact("???")) ;
+
+    assert_eq!(Token(Box::new(LegendaryCreature("Soldier"))), Token(Box::new(LegendaryCreature("Soldier")))) ;
+    assert_ne!(Token(Box::new(LegendaryCreature("Orc"))), Token(Box::new(LegendaryCreature("Soldier")))) ;
+}
+
+/// Represents a card's cost in the game's different manas<br/>
+/// Example: `ManaCost(colorless, white, blue, black, red, green)`<br/>
+/// ```
+/// use mtg_multitool::ManaCost;
+/// let mana = ManaCost::try_from("7 w bla black").unwrap() ;
+///
+/// assert_eq!(mana.colorless(), 7) ;
+/// assert_eq!(mana.white(), 1) ;
+/// assert_eq!(mana.black(), 2) ;
+/// assert_eq!(mana.blue(), 0) ;
+/// assert_eq!(mana.red(), 0) ;
+/// assert_eq!(mana.green(), 0) ;
+/// ```
 #[derive(Debug, Clone,Copy)]
 pub struct ManaCost(u8, u8, u8, u8, u8, u8) ;
 
 impl ManaCost
 {
+    pub fn zero() -> ManaCost
+    {
+        ManaCost(0,0,0,0,0,0)
+    }
+
     pub fn colorless(&self) -> u8
     { self.0 }
     pub fn white(&self) -> u8
@@ -193,22 +272,15 @@ impl ManaCost
     { self.5 }
 }
 
-impl Default for ManaCost
-{
-    fn default() -> Self {
-        ManaCost(0,0,0,0,0,0)
-    }
-}
-
 impl TryFrom<&'_ str> for ManaCost
 {
     type Error = &'static str;
 
     /// Converts str `n {"w" | "blu" | "bla" | "r" | "g"}` with n >= 0 to a ManaCost data struct
     fn try_from(value: &'_ str) -> Result<Self, Self::Error> {
-        if value.trim() == "" { return Err("str is empty") ; }
+        if value.trim() == "" { return Err("&str is empty") ; }
 
-        let mut result = ManaCost::default() ;
+        let mut result = ManaCost::zero() ;
 
         let mut iter = value.trim().split(" ") ;
 
@@ -221,7 +293,7 @@ impl TryFrom<&'_ str> for ManaCost
                     return Err("No colorless cost given")
                 }
             }
-            ;
+        ;
 
         if let Ok(i) = u8::from_str(f.to_ascii_lowercase().as_str())
         {
@@ -244,91 +316,6 @@ impl TryFrom<&'_ str> for ManaCost
     }
 }
 
-pub struct GenericCard<'a>
-{
-    id: Option<&'a str>,
-    name: &'a str,
-
-    cost: ManaCost,
-    kind: Classification,
-
-    effects: &'a str,
-}
-
-impl<'s> TryFrom<&'s str> for GenericCard<'s>
-{
-    type Error = &'static str;
-
-    fn try_from(value: &'s str) -> Result<Self, Self::Error> {
-        todo!()
-    }
-}
-
-impl<'a> From<GenericCard<'a>> for Id<'a>
-{
-    fn from(value: GenericCard<'a>) -> Self {
-        if let Some(id) = value.id
-        {
-            return Both(value.name, id) ;
-        }
-
-        return Name(value.name) ;
-    }
-}
-
-pub struct Collection<'a>(Vec<(GenericCard<'a>, usize)>) ;
-
-impl<'a> Collection<'a>
-{
-    pub fn make<T: TryInto<GenericCard<'a>> + Clone>(items: Vec<T>) -> Collection<'a>
-    {
-        //todo retirer le .zip
-        Collection(
-            items.iter().map(
-                |item|
-                    {
-                        if let Ok(i) = item.clone().try_into()
-                        {
-                            (i, 0usize)
-                        } else {
-                            panic!("failed.")
-                        }
-
-                    }
-            ).collect()
-        )
-    }
-
-    pub fn add<T: Into<Id<'a>>>(&mut self, id: T)
-    {
-        todo!()
-    }
-
-    pub fn remove<T: Into<Id<'a>>>(&mut self, id: T)
-    {
-        todo!()
-    }
-}
-
-pub struct Deck<'a>([Id<'a> ; 60]) ;
-
+#[cfg(LTR)]
 include!("../assets/ltr/mod.rs");
 
-/*#[test]
-fn esg_lua() -> Result<(), &'static str>
-{
-    let mut lua = ltr::collection() ;
-
-    lua.add(&"LTR C 000000001", 1)? ;
-    lua.add(&"Banish from Edoras", 1)? ;
-    lua.add(&"LTR C 0001", 1)? ;
-    lua.add(&"LTR C 1", 1)? ;
-    lua.add(&ltr::BANISH_FROM_EDORAS(), 1)? ;
-
-    lua.add(&"LTR R 2", 2) ? ;
-    lua.add(&"The battle of Bywater", 2) ? ;
-
-    println!("{lua:?}") ;
-
-    Ok(())
-}*/
