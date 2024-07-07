@@ -119,6 +119,12 @@ impl<'s> TryFrom<&'s str> for GenericCard<'s>
     }
 }
 
+#[test]
+fn genericcard_try_from_str()
+{
+    todo!()
+}
+
 impl<'a> From<GenericCard<'a>> for Id<'a>
 {
     fn from(value: GenericCard<'a>) -> Self {
@@ -129,4 +135,10 @@ impl<'a> From<GenericCard<'a>> for Id<'a>
 
         return Name(value.name) ;
     }
+}
+
+#[test]
+fn id_from_generic_card()
+{
+    todo!()
 }
