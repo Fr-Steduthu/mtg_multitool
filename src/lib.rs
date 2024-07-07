@@ -1,4 +1,4 @@
-
+use crate::cards::GenericCard;
 
 /// Represents card unique identifiers (either name or `{series} {rarity} {internal series id}`)
 pub mod ids;
@@ -331,10 +331,21 @@ pub mod ltr ;
 #[test]
 fn ltr_collection()
 {
-    let lua = ltr::collection() ;
+    let mut lua = ltr::collection() ;
 
-    lua.add(&BANISH_FROM_EDORAS) ;
+    lua.add("BAnish from Edoras", 1) ;
 
-    println!("{:?}", lua)
+    println!("{:?}", lua) ;
+    assert_eq!(
+        lua.count(GenericCard::try_from(ltr::BANISH_FROM_EDORAS).unwrap())
+            .expect("Collection::add does not behave as expected"),
+        1
+    ) ;
+    assert_eq!(
+        lua.count("LTR C 0001")
+            .expect("Collection::add does not behave as expected"),
+        1
+    ) ;
+
 }
 

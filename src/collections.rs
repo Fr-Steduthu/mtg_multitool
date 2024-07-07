@@ -6,7 +6,7 @@ pub struct Collection<'a>(Vec<(GenericCard<'a>, usize)>) ;
 
 impl<'gc> Collection<'gc>
 {
-    pub fn make<T>(items: Vec<T>) -> Collection<'gc>
+    pub fn make<T>(items: Vec<T>) -> Collection<'gc> //Result<Collection<'gc>, &'static str>
         where T: TryInto<GenericCard<'gc>> + Clone
     {
         Collection(
@@ -17,7 +17,7 @@ impl<'gc> Collection<'gc>
                         {
                             (i, 0usize)
                         } else {
-                            panic!("failed.")
+                            panic!("Collection::make Could not clone input card") // todo: remplacer par un Result
                         }
 
                     }
@@ -29,10 +29,12 @@ impl<'gc> Collection<'gc>
         where T: AsId<'any>
     {
         let id: Id = id.as_id() ;
-        for (card, amount) in self.0.iter_mut() {
+        for (card, amount) in self.0.iter_mut()
+        {
             if id == card.as_id()
             {
                 *amount += quantity ;
+                break ;
             }
         }
     }
@@ -56,7 +58,7 @@ impl<'gc> Collection<'gc>
         {
             if card.as_id() == id.as_id()
             {
-                return Some(amount.clone())
+                return Some(amount.clone()) ;
             }
         }
 

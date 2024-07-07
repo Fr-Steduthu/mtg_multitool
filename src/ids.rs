@@ -28,17 +28,31 @@ impl<'a, T> AsId<'a> for T where T: Into<Id<'a>> + Clone
 impl PartialEq for Id<'_>
 {
     fn eq(&self, other: &Self) -> bool {
-        match self {
-            Id::Name(n) => if let Id::Name(nn) = other { n == nn } else { false },
-            Id::Serial(s) => if let Id::Serial(ss) = other { s == ss } else { false },
+        use crate::ids::Id::* ;
+        match (self, other)
+        {
+            (Name(n), Name(nn)) => n.to_ascii_lowercase() == nn.to_ascii_lowercase(),
+            (Serial(n), Serial(nn)) => n.to_ascii_lowercase() == nn.to_ascii_lowercase(), //todo fix
+            (Both(n, id), Both(nn, idd)) => n.to_ascii_lowercase() == nn.to_ascii_lowercase() || id.to_ascii_lowercase() == idd.to_ascii_lowercase(),
+
+            (Both(n, _), Name(nn)) |
+            (Both(_, n), Serial(nn)) |
+
+            (Name(n), Both(nn, _)) |
+            (Serial(n), Both(_, nn)) => n.to_ascii_lowercase() == nn.to_ascii_lowercase(),
+
+            _ => false
+
+            /*Id::Name(n) => if let Id::Name(nn) = other { n.to_ascii_lowercase() == nn.to_ascii_lowercase() } else { false },
+            Id::Serial(s) => if let Id::Serial(ss) = other { s.to_ascii_lowercase() == ss.to_ascii_lowercase() } else { false },
             Id::Both(n, s) => {
                 match other
                 {
-                    Id::Name(nn) => n == nn,
-                    Id::Serial(ss) => s == ss,
-                    Id::Both(nn, ss) => n == nn || s == ss,
+                    Id::Name(nn) => n.to_ascii_lowercase() == nn.to_ascii_lowercase(),
+                    Id::Serial(ss) => s.to_ascii_lowercase() == ss.to_ascii_lowercase(),
+                    Id::Both(nn, ss) => n.to_ascii_lowercase() == nn.to_ascii_lowercase() || s.to_ascii_lowercase() == ss.to_ascii_lowercase(),
                 }
-            }
+            }*/
         }
     }
 }
@@ -46,7 +60,9 @@ impl PartialEq for Id<'_>
 #[test]
 fn id_partialeq()
 {
-    todo!()
+    use crate::ids::Id::{*} ;
+    assert_eq!(Name("Banish from Edoras"), Both("BaNISH FROm EdORas", "LTR C 0001")) ;
+
 }
 
 /// Checks if given `&str` is formatted as a Serial would be
