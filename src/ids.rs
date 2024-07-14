@@ -1,15 +1,19 @@
+use crate::Rarity;
 
 #[derive(Debug, Clone, Copy)]
-pub enum Id<'s>
+pub enum Id<'any>
 {
     /// Example: `Name("Banish from Edoras")`
-    Name(&'s str),
+    Name(&'any str),
 
     /// Example: `Serial("LTR C 0001")`
-    Serial(&'s str),
+    Serial(&'any str),
 
     /// Example: `Both("Banish from Edoras", "LTR C 0001")`
-    Both(&'s str, &'s str),
+    Both(&'any str, &'any str),
+
+    /// Example: `Either("Banish from Edoras", "LTR C 0001")`
+    Either(&'any str, &'any str)
 }
 
 /// Used for the conversion, without moving the original value, of a type into an Id
@@ -31,28 +35,13 @@ impl PartialEq for Id<'_>
         use crate::ids::Id::* ;
         match (self, other)
         {
-            (Name(n), Name(nn)) => n.to_ascii_lowercase() == nn.to_ascii_lowercase(),
-            (Serial(n), Serial(nn)) => n.to_ascii_lowercase() == nn.to_ascii_lowercase(), //todo fix
-            (Both(n, id), Both(nn, idd)) => n.to_ascii_lowercase() == nn.to_ascii_lowercase() || id.to_ascii_lowercase() == idd.to_ascii_lowercase(),
+            (Both(n, id), Both(nn, idd)) => n.to_ascii_lowercase() == nn.to_ascii_lowercase() && is_serial(id).unwrap() == is_serial(idd).unwrap(),
+            (Either(n, id), Either(nn, idd)) => n.to_ascii_lowercase() == nn.to_ascii_lowercase() || is_serial(id).unwrap() == is_serial(idd).unwrap(),
 
-            (Both(n, _), Name(nn)) |
-            (Both(_, n), Serial(nn)) |
-
-            (Name(n), Both(nn, _)) |
-            (Serial(n), Both(_, nn)) => n.to_ascii_lowercase() == nn.to_ascii_lowercase(),
+            (Name(n) | Either(n, _), Name(nn) | Either(nn, _)) => n.to_ascii_lowercase() == nn.to_ascii_lowercase(),
+            (Serial(id) | Either(_, id), Serial(idd) | Either(_, idd)) => is_serial(id).unwrap() == is_serial(idd).unwrap(),
 
             _ => false
-
-            /*Id::Name(n) => if let Id::Name(nn) = other { n.to_ascii_lowercase() == nn.to_ascii_lowercase() } else { false },
-            Id::Serial(s) => if let Id::Serial(ss) = other { s.to_ascii_lowercase() == ss.to_ascii_lowercase() } else { false },
-            Id::Both(n, s) => {
-                match other
-                {
-                    Id::Name(nn) => n.to_ascii_lowercase() == nn.to_ascii_lowercase(),
-                    Id::Serial(ss) => s.to_ascii_lowercase() == ss.to_ascii_lowercase(),
-                    Id::Both(nn, ss) => n.to_ascii_lowercase() == nn.to_ascii_lowercase() || s.to_ascii_lowercase() == ss.to_ascii_lowercase(),
-                }
-            }*/
         }
     }
 }
@@ -62,36 +51,57 @@ fn id_partialeq()
 {
     use crate::ids::Id::{*} ;
     assert_eq!(Name("Banish from Edoras"), Both("BaNISH FROm EdORas", "LTR C 0001")) ;
+    todo!()
 
 }
 
-/// Checks if given `&str` is formatted as a Serial would be
-fn is_serial(s: &str) -> bool
+/// Checks if given `&str` is formatted as a Serial would be ;<br/>
+/// Returns `Some((series, rarity, id_within_series))` if it is, `None` otherwise
+fn is_serial(s: &str) -> Option<(String, Rarity, usize)>
 {
     let mut ss = s.split(" ") ;
-    if let Some(_) = ss.next()
+    if let Some(series) = ss.next()
     {
         if let Some(rarity) = ss.next()
         {
-            if let Ok(_) = crate::Rarity::try_from(rarity)
+            if let Ok(rarity) = crate::Rarity::try_from(rarity)
             {
                 if let Some(id) = ss.next()
                 {
-                    if let Ok(_) = id.parse::<usize>()
+                    if let Ok(id) = id.parse::<usize>()
                     {
-                        return true ;
+                        return Some((series.trim().to_ascii_uppercase(), rarity, id)) ;
                     }
                 }
             }
         }
     }
 
-    false
+    None
 }
+
+#[test]
+fn is_serial_tests()
+{
+    use crate::Rarity::* ;
+    assert_eq!(is_serial("LTR"), None) ;
+    assert_eq!(is_serial("LTR C"), None) ;
+    assert_eq!(is_serial("LTR C 0001"), Some(("LTR".to_string(), Common, 1))) ;
+    assert_eq!(is_serial("LTR C 1"), Some(("LTR".to_string(), Common, 1))) ;
+    assert_eq!(is_serial("LTR c 0001"), Some(("LTR".to_string(), Common, 1))) ;
+    assert_eq!(is_serial("C 001"), None) ;
+    assert_eq!(is_serial("LTR 1"), None) ;
+    assert_eq!(is_serial("ltr c 1"), Some(("LTR".to_string(), Common, 1))) ;
+    assert_eq!(is_serial("c LTR 1"), None) ;
+    assert_eq!(is_serial("1 c LTR"), None) ;
+    assert_eq!(is_serial("Banish from Edoras"), None) ;
+    assert_eq!(is_serial("LTR f 01"), None) ;
+}
+
 impl<'s> From<&'s str> for Id<'s>
 {
     fn from(value: &'s str) -> Self {
-        if is_serial(value)
+        if is_serial(value).is_some()
         {
             Id::Serial(value)
         }

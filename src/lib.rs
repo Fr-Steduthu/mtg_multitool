@@ -342,7 +342,7 @@ fn ltr_collection()
         1
     ) ;
     assert_eq!(
-        lua.count("LTR C 0001")
+        lua.count("LTR C 0001") // Todo: change
             .expect("Collection::add does not behave as expected"),
         1
     ) ;
